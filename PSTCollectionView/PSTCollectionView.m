@@ -2221,16 +2221,26 @@ static void PSTRegisterClasses() {
     // Ensure that superclass replacement is all-or-nothing for the PSUI*_ types. Either use exclusively
     // UICollectionView*, or exclusively PSTCollectionView*.
     __block BOOL canOverwrite = YES;
-    [map enumerateKeysAndObjectsUsingBlock:^(NSString* UIClassName, id PSTClass, BOOL *stop) {
+    [map enumerateKeysAndObjectsUsingBlock:^(NSString* UIClassName, Class PSTClass, BOOL *stop) {
         Class UIClass = NSClassFromString(UIClassName);
         if (UIClass) {
             // Class size need to be the same for class_setSuperclass to work.
             // If the UIKit class is smaller then our subclass, ivars won't clash, so there's no issue.
+#if 1
+            // isghe: avoid crashing on my project on 64 bits (it just works).
+            const long sizeDifference = (long)class_getInstanceSize(UIClass) - class_getInstanceSize(PSTClass);
+            if (sizeDifference > 0) {
+                NSLog (@"%s - %@", __PRETTY_FUNCTION__, @{@"UIClassName": UIClassName, @"PSTClass": PSTClass, @"class_getInstanceSize(UIClass)": @(class_getInstanceSize(UIClass)), @"class_getInstanceSize(PSTClass)": @(class_getInstanceSize(PSTClass))});
+                NSLog(@"Warning! ivar size mismatch in %@ of %tu bytes.", PSTClass, sizeDifference);
+            }
+
+#else
             long sizeDifference = (long)class_getInstanceSize(UIClass) - class_getInstanceSize(PSTClass);
             if (sizeDifference > 0) {
                 canOverwrite = NO;
                 NSLog(@"Warning! ivar size mismatch in %@ of %tu bytes - can't change the superclass.", PSTClass, sizeDifference);
             }
+#endif
         } else {
             canOverwrite = NO;
             // We're most likely on iOS5, the requested UIKit class doesn't exist, so we create it dynamically.
